@@ -1,0 +1,2 @@
+# earthquakes
+Display earthquake information
