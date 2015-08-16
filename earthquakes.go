@@ -14,6 +14,7 @@ package main
 
 import (
     "fmt"
+    "time"
     "log"
 	"net/http"
     //"strings"
@@ -40,6 +41,8 @@ const (
                 <p>Shows latest earthquakes around the world</p>`
     form = `
                 <form role="form" action="/" method="POST">
+                    <div class="row" id="row2">
+                    <div class="col-xs-3 col">
                 	<h3>Choose time span</h3>
                     <div class="radio">
                         <label><input type="radio" name="opttime" id="timeHour" value="hour">Past Hour</label>
@@ -53,6 +56,8 @@ const (
                     <div class="radio">
                         <label><input type="radio" name="opttime" id="timeMonth" value="month">Past 30 Days</label>
                     </div>
+                    </div>
+                    <div class="col-xs-3 col">
                     <h3>Choose magnitude</h3>
                     <div class="radio">
                         <label><input type="radio" name="optmagnitude" id="magnitudeSignificant" value="significant" checked="checked">Significant</label>
@@ -68,6 +73,8 @@ const (
                     </div>
                     <div class="radio">
                         <label><input type="radio" name="optmagnitude" id="magnitudeAll" value="all">All</label>
+                    </div>
+                    </div>
                     </div>
                     <button type="submit" class="btn btn-success" >Show</button>
                 </form>`
@@ -103,6 +110,14 @@ type earthquakes struct {
     mag magnitude
     title string
     count int
+    quakes []earthquake
+}
+
+type earthquake struct {
+    mag float32
+    place string
+    time string
+    url string
 }
 
 func main() {
@@ -242,22 +257,59 @@ func getQuakes(ts timespan, mag magnitude) (earthquakes, error) {
     quakes.mag = mag
     quakes.title = d.Metadata.Title
     quakes.count = d.Metadata.Count
+    quakes.quakes = make([]earthquake, d.Metadata.Count)
+    
+    for i, q := range d.Features {
+        quakes.quakes[i].mag = q.Properties.Mag
+        quakes.quakes[i].place = q.Properties.Place
+        quakes.quakes[i].time = fmt.Sprint(time.Unix(q.Properties.Time/1000, 0))
+        quakes.quakes[i].url = q.Properties.Url
+    }
     
     return quakes, nil
 }
 
 // format earthquakes in HTML
 func formatQuakes(quakes earthquakes) string {
-    return fmt.Sprintf(`
+    quakesHtml := fmt.Sprintf(`
         <h3>%s</h3>
-        <p>count: %d</p>`, quakes.title, quakes.count)
+        <p>count: %d</p>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr><th>Magnitude</th><th>Place</th><th>Time</th><th>Link</th></tr>
+                </thead>
+                <tbody>`,
+                quakes.title, quakes.count)
+                
+    for _, q := range quakes.quakes {
+        quakesHtml += fmt.Sprintf(`
+                    <tr><td>%.2f</td><td>%s</td><td>%s</td><td><a href="%s">%s</a></td></tr>`,
+                    q.mag, q.place, q.time, q.url, q.url)
+    }
+    
+    quakesHtml += fmt.Sprintf(`
+                </tbody>
+            </table>
+        </div>`)
+        
+    return quakesHtml
 }
 
-// The GeoJSON struct
+// The GeoJSON struct with the fields we are interested in
 type geojson struct {
     Metadata struct {
         Url   string `json:"url"`
         Title string `json:"title"`
         Count int `json:"count"`
     } `json:"metadata"`
+    Features [] struct {
+        Properties struct {
+            Mag float32 `json:"mag"`
+            Place string `json:"place"`
+            Time int64 `json:"time"`
+            Tz int64 `json:"tz"`
+            Url string `json:"url"`
+        } `json:"properties"`
+    } `json:"features"`
 }
