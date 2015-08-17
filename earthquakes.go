@@ -94,6 +94,38 @@ const (
 	month
 )
 
+func (ts timespan) String() string {
+    switch ts {
+        case hour:
+            return "hour"
+        case day:
+            return "day"
+        case week:
+            return "week"
+        case month:
+            return "month"
+        default:
+            return ""
+    }
+}
+
+func (_ timespan) Timespan(ts string) (timespan, error) {
+	switch ts {
+	    case "hour":
+	        return hour, nil
+	    case "day":
+	        return day, nil
+	    case "week":
+	        return week, nil
+	    case "month":
+	        return month, nil
+	    case "":
+	        return day, nil
+	    default:
+            return day, fmt.Errorf("invalid timespan '%s'", ts)
+	}
+}
+
 // Enums for magnitudes
 type magnitude int;
 const (
@@ -104,6 +136,42 @@ const (
 	all
 )
 
+func (mag magnitude) String() string {
+    switch mag {
+        case significant:
+            return "significant"
+        case m4_5:
+            return "4.5"
+        case m2_5:
+            return "2.5"
+        case m1_0:
+            return "1.0"
+        case all:
+            return "all"
+        default:
+            return ""
+    }
+}
+
+func (_ magnitude) Magnitude(mag string) (magnitude, error) {
+	switch mag {
+	    case "significant":
+	        return significant, nil
+	    case "4_5":
+	        return m4_5, nil
+	    case "2_5":
+	        return m2_5, nil
+	    case "1_0":
+	        return m1_0, nil
+	    case "all":
+	        return all, nil
+	    case "":
+	        return significant, nil
+	    default:
+            return significant, fmt.Errorf("invalid magnitude '%s'", mag)
+	}
+}
+
 // Struct holding the user's options and list of earthquakes
 type earthquakes struct {
     ts timespan
@@ -113,6 +181,7 @@ type earthquakes struct {
     quakes []earthquake
 }
 
+// Struct holding information for one earthquake
 type earthquake struct {
     mag float32
     place string
@@ -164,41 +233,14 @@ func processRequest(request *http.Request) (timespan, magnitude, string, bool) {
 	
 	var ts timespan
 	var mag magnitude
+	var err error
 	
-	switch inputTs {
-	    case "hour":
-	        ts = hour
-	    case "day":
-	        ts = day
-	    case "week":
-	        ts = week
-	    case "month":
-	        ts = month
-	    default:
-	        var msg string
-	        if inputTs != "" {
-	            msg = "invalid timespan " + "'" + inputTs + "'"
-	        }
-            return day, significant, msg, false
+	if ts, err = ts.Timespan(inputTs); err != nil {
+	    return day, significant, fmt.Sprint(err), false
 	}
-	
-	switch inputMag {
-	    case "significant":
-	        mag = significant
-	    case "4_5":
-	        mag = m4_5
-	    case "2_5":
-	        mag = m2_5
-	    case "1_0":
-	        mag = m1_0
-	    case "all":
-	        mag = all
-	    default:
-	        var msg string
-	        if inputMag != "" {
-	            msg = "invalid magnitude " + "'" + inputMag + "'"
-	        }
-	        return day, significant, msg, false
+	    
+	if mag, err = mag.Magnitude(inputMag); err != nil {
+	    return day, significant, fmt.Sprint(err), false
 	}
 
 	return ts, mag, "", true
@@ -207,37 +249,8 @@ func processRequest(request *http.Request) (timespan, magnitude, string, bool) {
 // get the earthquakes from the USGS website
 func getQuakes(ts timespan, mag magnitude) (earthquakes, error) {
     url := "http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/"
-    
-    switch mag {
-        case significant:
-            url += "significant"
-        case m4_5:
-            url += "4.5"
-        case m2_5:
-            url += "2.5"
-        case m1_0:
-            url += "1.0"
-        case all:
-            url += "all"
-        default:
-            url += ""
-    }
-    
-    switch ts {
-        case hour:
-        url += "_hour"
-        case day:
-        url += "_day"
-        case week:
-        url += "_week"
-        case month:
-        url += "_month"
-        default:
-        url += ""
-    }
-    
-    url += ".geojson"
-    
+    url += mag.String() + "_" + ts.String() + ".geojson"
+
     resp, err := http.Get(url)
     if err != nil {
         return earthquakes{}, err
