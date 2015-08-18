@@ -109,7 +109,7 @@ func (ts timespan) String() string {
     }
 }
 
-func (_ timespan) Timespan(ts string) (timespan, error) {
+func (_ timespan) Create(ts string) (timespan, error) {
 	switch ts {
 	    case "hour":
 	        return hour, nil
@@ -153,7 +153,7 @@ func (mag magnitude) String() string {
     }
 }
 
-func (_ magnitude) Magnitude(mag string) (magnitude, error) {
+func (_ magnitude) Create(mag string) (magnitude, error) {
 	switch mag {
 	    case "significant":
 	        return significant, nil
@@ -235,11 +235,11 @@ func processRequest(request *http.Request) (timespan, magnitude, string, bool) {
 	var mag magnitude
 	var err error
 	
-	if ts, err = ts.Timespan(inputTs); err != nil {
+	if ts, err = ts.Create(inputTs); err != nil {
 	    return day, significant, fmt.Sprint(err), false
 	}
 	    
-	if mag, err = mag.Magnitude(inputMag); err != nil {
+	if mag, err = mag.Create(inputMag); err != nil {
 	    return day, significant, fmt.Sprint(err), false
 	}
 
